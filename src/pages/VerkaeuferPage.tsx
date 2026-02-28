@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
-import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
+import { LivingAppsService } from '@/services/livingAppsService';
 import type { Verkaeufer } from '@/types/app';
-import { APP_IDS } from '@/types/app';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Pencil, Trash2, Plus, Search } from 'lucide-react';
+import { Pencil, Trash2, Plus, Search, Building2, Mail, Phone, MapPin, User, FileText } from 'lucide-react';
 import { VerkaeuferDialog } from '@/components/dialogs/VerkaeuferDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageShell } from '@/components/PageShell';
@@ -91,58 +86,109 @@ export default function VerkaeuferPage() {
           className="pl-9"
         />
       </div>
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Firmenname / Verkäufername</TableHead>
-              <TableHead>Vorname Ansprechpartner</TableHead>
-              <TableHead>Nachname Ansprechpartner</TableHead>
-              <TableHead>E-Mail-Adresse</TableHead>
-              <TableHead>Telefonnummer</TableHead>
-              <TableHead>Straße</TableHead>
-              <TableHead>Hausnummer</TableHead>
-              <TableHead>Postleitzahl</TableHead>
-              <TableHead>Stadt</TableHead>
-              <TableHead>Beschreibung / Über uns</TableHead>
-              <TableHead className="w-24">Aktionen</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(record => (
-              <TableRow key={record.record_id} className="hover:bg-muted/50 transition-colors">
-                <TableCell className="font-medium">{record.fields.firma_name ?? '—'}</TableCell>
-                <TableCell>{record.fields.kontakt_vorname ?? '—'}</TableCell>
-                <TableCell>{record.fields.kontakt_nachname ?? '—'}</TableCell>
-                <TableCell>{record.fields.email ?? '—'}</TableCell>
-                <TableCell>{record.fields.telefon ?? '—'}</TableCell>
-                <TableCell>{record.fields.strasse ?? '—'}</TableCell>
-                <TableCell>{record.fields.hausnummer ?? '—'}</TableCell>
-                <TableCell>{record.fields.postleitzahl ?? '—'}</TableCell>
-                <TableCell>{record.fields.stadt ?? '—'}</TableCell>
-                <TableCell className="max-w-xs"><span className="truncate block">{record.fields.beschreibung ?? '—'}</span></TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditingRecord(record)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(record)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
+          <Building2 size={40} className="opacity-20" />
+          <p className="text-sm">{search ? 'Keine Ergebnisse gefunden.' : 'Noch keine Verkäufer. Jetzt hinzufügen!'}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map(record => {
+            const f = record.fields;
+            const initials = [f.kontakt_vorname, f.kontakt_nachname]
+              .filter(Boolean)
+              .map(n => n![0].toUpperCase())
+              .join('') || (f.firma_name?.[0]?.toUpperCase() ?? '?');
+            const address = [f.strasse, f.hausnummer, f.postleitzahl, f.stadt].filter(Boolean).join(' ');
+
+            return (
+              <div
+                key={record.record_id}
+                className="group bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+              >
+                {/* Card header with avatar */}
+                <div className="flex items-center gap-4 p-5 pb-4 border-b border-border/60">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-base font-bold text-primary">{initials}</span>
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={11} className="text-center py-16 text-muted-foreground">
-                  {search ? 'Keine Ergebnisse gefunden.' : 'Noch keine Verkäufer. Jetzt hinzufügen!'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-foreground truncate leading-tight">
+                      {f.firma_name || 'Unbekannte Firma'}
+                    </h3>
+                    {(f.kontakt_vorname || f.kontakt_nachname) && (
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 truncate">
+                        <User size={11} />
+                        {[f.kontakt_vorname, f.kontakt_nachname].filter(Boolean).join(' ')}
+                      </p>
+                    )}
+                  </div>
+                  {/* Actions — visible on hover */}
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setEditingRecord(record)}
+                      title="Bearbeiten"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-destructive transition-colors"
+                      onClick={() => setDeleteTarget(record)}
+                      title="Löschen"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Info rows */}
+                <div className="p-5 pt-4 space-y-2.5">
+                  {f.email && (
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Mail size={14} className="text-muted-foreground shrink-0" />
+                      <a
+                        href={`mailto:${f.email}`}
+                        className="text-primary hover:underline truncate"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {f.email}
+                      </a>
+                    </div>
+                  )}
+                  {f.telefon && (
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Phone size={14} className="text-muted-foreground shrink-0" />
+                      <a
+                        href={`tel:${f.telefon}`}
+                        className="text-foreground hover:text-primary truncate transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {f.telefon}
+                      </a>
+                    </div>
+                  )}
+                  {address && (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <MapPin size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                      <span className="text-foreground/80 leading-snug">{address}</span>
+                    </div>
+                  )}
+                  {f.beschreibung && (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <FileText size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground line-clamp-2 leading-snug">{f.beschreibung}</span>
+                    </div>
+                  )}
+                  {!f.email && !f.telefon && !address && !f.beschreibung && (
+                    <p className="text-xs text-muted-foreground/50 italic">Keine weiteren Infos</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <VerkaeuferDialog
         open={dialogOpen || !!editingRecord}
